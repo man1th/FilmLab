@@ -27,6 +27,7 @@ export function ControlSidebar() {
     lens,
     format,
     print,
+    groupsEnabled,
     updateChemistry,
     updateHalation,
     updateGrain,
@@ -34,6 +35,7 @@ export function ControlSidebar() {
     updateLens,
     updateFormat,
     updatePrint,
+    toggleGroup,
   } = useParameterStore();
 
   return (
@@ -42,7 +44,19 @@ export function ControlSidebar() {
       <AccordionItem value="group-1">
         <AccordionTrigger className="text-sm font-medium text-zinc-300 py-2.5 gap-2">
           <Droplets className="w-3.5 h-3.5 text-amber-500/70 shrink-0" />
-          <span>Chemistry &amp; Tone Curve</span>
+          <span className="flex-1 text-left">Chemistry &amp; Tone Curve</span>
+          <label
+            onClick={(e) => e.stopPropagation()}
+            className="relative inline-flex items-center cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={groupsEnabled.chemistry}
+              onChange={() => toggleGroup("chemistry")}
+            />
+            <div className="w-7 h-4 rounded-full peer bg-zinc-700 peer-checked:bg-amber-600 after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-3" />
+          </label>
         </AccordionTrigger>
         <AccordionContent className="space-y-3 pb-3">
           <ParamSlider
@@ -109,7 +123,19 @@ export function ControlSidebar() {
       <AccordionItem value="group-2">
         <AccordionTrigger className="text-sm font-medium text-zinc-300 py-2.5 gap-2">
           <Sun className="w-3.5 h-3.5 text-amber-500/70 shrink-0" />
-          <span>Optical Halation &amp; Bleed</span>
+          <span className="flex-1 text-left">Optical Halation &amp; Bleed</span>
+          <label
+            onClick={(e) => e.stopPropagation()}
+            className="relative inline-flex items-center cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={groupsEnabled.halation}
+              onChange={() => toggleGroup("halation")}
+            />
+            <div className="w-7 h-4 rounded-full peer bg-zinc-700 peer-checked:bg-amber-600 after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-3" />
+          </label>
         </AccordionTrigger>
         <AccordionContent className="space-y-3 pb-3">
           <ParamSlider
@@ -182,7 +208,19 @@ export function ControlSidebar() {
       <AccordionItem value="group-3">
         <AccordionTrigger className="text-sm font-medium text-zinc-300 py-2.5 gap-2">
           <Grid3x3 className="w-3.5 h-3.5 text-amber-500/70 shrink-0" />
-          <span>Silver Halide Grain Engine</span>
+          <span className="flex-1 text-left">Silver Halide Grain Engine</span>
+          <label
+            onClick={(e) => e.stopPropagation()}
+            className="relative inline-flex items-center cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={groupsEnabled.grain}
+              onChange={() => toggleGroup("grain")}
+            />
+            <div className="w-7 h-4 rounded-full peer bg-zinc-700 peer-checked:bg-amber-600 after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-3" />
+          </label>
         </AccordionTrigger>
         <AccordionContent className="space-y-3 pb-3">
           <ParamSlider
@@ -253,7 +291,21 @@ export function ControlSidebar() {
       <AccordionItem value="group-4">
         <AccordionTrigger className="text-sm font-medium text-zinc-300 py-2.5 gap-2">
           <Scan className="w-3.5 h-3.5 text-amber-500/70 shrink-0" />
-          <span>Acutance &amp; Multi-Scale Edge</span>
+          <span className="flex-1 text-left">
+            Acutance &amp; Multi-Scale Edge
+          </span>
+          <label
+            onClick={(e) => e.stopPropagation()}
+            className="relative inline-flex items-center cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={groupsEnabled.acutance}
+              onChange={() => toggleGroup("acutance")}
+            />
+            <div className="w-7 h-4 rounded-full peer bg-zinc-700 peer-checked:bg-amber-600 after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-3" />
+          </label>
         </AccordionTrigger>
         <AccordionContent className="space-y-3 pb-3">
           <ParamSlider
@@ -331,7 +383,21 @@ export function ControlSidebar() {
       <AccordionItem value="group-5">
         <AccordionTrigger className="text-sm font-medium text-zinc-300 py-2.5 gap-2">
           <Camera className="w-3.5 h-3.5 text-amber-500/70 shrink-0" />
-          <span>Lens Configurations &amp; Aberrations</span>
+          <span className="flex-1 text-left">
+            Lens Configurations &amp; Aberrations
+          </span>
+          <label
+            onClick={(e) => e.stopPropagation()}
+            className="relative inline-flex items-center cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={groupsEnabled.lens}
+              onChange={() => toggleGroup("lens")}
+            />
+            <div className="w-7 h-4 rounded-full peer bg-zinc-700 peer-checked:bg-amber-600 after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-3" />
+          </label>
         </AccordionTrigger>
         <AccordionContent className="space-y-3 pb-3">
           <ParamSlider
@@ -398,7 +464,21 @@ export function ControlSidebar() {
       <AccordionItem value="group-6">
         <AccordionTrigger className="text-sm font-medium text-zinc-300 py-2.5 gap-2">
           <Film className="w-3.5 h-3.5 text-amber-500/70 shrink-0" />
-          <span>Film Gauge, Formats &amp; Debris</span>
+          <span className="flex-1 text-left">
+            Film Gauge, Formats &amp; Debris
+          </span>
+          <label
+            onClick={(e) => e.stopPropagation()}
+            className="relative inline-flex items-center cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={groupsEnabled.format}
+              onChange={() => toggleGroup("format")}
+            />
+            <div className="w-7 h-4 rounded-full peer bg-zinc-700 peer-checked:bg-amber-600 after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-3" />
+          </label>
         </AccordionTrigger>
         <AccordionContent className="space-y-3 pb-3">
           <ParamSelect
@@ -462,7 +542,21 @@ export function ControlSidebar() {
       <AccordionItem value="group-7">
         <AccordionTrigger className="text-sm font-medium text-zinc-300 py-2.5 gap-2">
           <FlaskConical className="w-3.5 h-3.5 text-amber-500/70 shrink-0" />
-          <span>Laboratory Print &amp; Calibration</span>
+          <span className="flex-1 text-left">
+            Laboratory Print &amp; Calibration
+          </span>
+          <label
+            onClick={(e) => e.stopPropagation()}
+            className="relative inline-flex items-center cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={groupsEnabled.print}
+              onChange={() => toggleGroup("print")}
+            />
+            <div className="w-7 h-4 rounded-full peer bg-zinc-700 peer-checked:bg-amber-600 after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-3" />
+          </label>
         </AccordionTrigger>
         <AccordionContent className="space-y-3 pb-3">
           <ParamSelect

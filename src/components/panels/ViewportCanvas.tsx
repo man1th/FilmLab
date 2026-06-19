@@ -39,17 +39,35 @@ export function ViewportCanvas({
     const pipeline = pipelineRef.current;
     if (!pipeline) return;
 
-    const params = useParameterStore.getState().chemistry;
-    const paramArray = new Float64Array([
-      params.dMin,
-      params.dMax,
-      params.subtractiveDensity,
-      params.contrastProfile,
-      params.chemistryExpiration,
-      params.shadowFog,
-    ]);
+    const store = useParameterStore.getState();
 
-    pipeline.setParams(paramArray);
+    // Chemistry params — use neutral values when group is off
+    const chem = store.groupsEnabled.chemistry
+      ? store.chemistry
+      : {
+          dMin: 0,
+          dMax: 1,
+          subtractiveDensity: 1,
+          contrastProfile: 1,
+          chemistryExpiration: 0,
+          shadowFog: 0,
+        };
+    const chemArray = new Float64Array([
+      chem.dMin,
+      chem.dMax,
+      chem.subtractiveDensity,
+      chem.contrastProfile,
+      chem.chemistryExpiration,
+      chem.shadowFog,
+    ]);
+    pipeline.setChemistryParams(chemArray);
+
+    // Halation params — group off = spreadRadius 0 (disables halation passes)
+    const hals = store.groupsEnabled.halation
+      ? store.halation
+      : { ...store.halation, spreadRadius: 0 };
+    pipeline.setHalationParams(hals);
+
     const pixels = pipeline.render(); // Uint8ClampedArray
 
     // Copy to new buffer for ImageData (type-safe ArrayBuffer)

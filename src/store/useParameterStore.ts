@@ -80,6 +80,9 @@ export interface ParameterStore {
   format: FormatParams;
   print: PrintParams;
 
+  /** Per-group master toggle — off by default */
+  groupsEnabled: Record<string, boolean>;
+
   updateChemistry: (params: Partial<ChemistryParams>) => void;
   updateHalation: (params: Partial<HalationParams>) => void;
   updateGrain: (params: Partial<GrainParams>) => void;
@@ -88,6 +91,7 @@ export interface ParameterStore {
   updateFormat: (params: Partial<FormatParams>) => void;
   updatePrint: (params: Partial<PrintParams>) => void;
 
+  toggleGroup: (id: string) => void;
   resetAll: () => void;
 }
 
@@ -103,12 +107,12 @@ const defaultChemistry: ChemistryParams = {
 };
 
 const defaultHalation: HalationParams = {
-  spreadRadius: 15,
+  spreadRadius: 10,
   fringeChromaticity: 1.0,
-  edgeRetention: 0.5,
+  edgeRetention: 0.2,
   redSpill: 1.0,
-  greenSpill: 1.0,
-  blueSpill: 1.0,
+  greenSpill: 0.2,
+  blueSpill: 0.0,
   remjetProtection: false,
   glowTemperature: 5500,
 };
@@ -164,6 +168,16 @@ const defaultPrint: PrintParams = {
 
 // ─── Store ──────────────────────────────────────────────────────────────────
 
+const DEFAULT_GROUPS_ENABLED = {
+  chemistry: false,
+  halation: false,
+  grain: false,
+  acutance: false,
+  lens: false,
+  format: false,
+  print: false,
+};
+
 export const useParameterStore = create<ParameterStore>((set) => ({
   chemistry: { ...defaultChemistry },
   halation: { ...defaultHalation },
@@ -172,6 +186,7 @@ export const useParameterStore = create<ParameterStore>((set) => ({
   lens: { ...defaultLens },
   format: { ...defaultFormat },
   print: { ...defaultPrint },
+  groupsEnabled: { ...DEFAULT_GROUPS_ENABLED },
 
   updateChemistry: (params) =>
     set((state) => ({ chemistry: { ...state.chemistry, ...params } })),
@@ -188,6 +203,11 @@ export const useParameterStore = create<ParameterStore>((set) => ({
   updatePrint: (params) =>
     set((state) => ({ print: { ...state.print, ...params } })),
 
+  toggleGroup: (id) =>
+    set((state) => ({
+      groupsEnabled: { ...state.groupsEnabled, [id]: !state.groupsEnabled[id] },
+    })),
+
   resetAll: () =>
     set({
       chemistry: { ...defaultChemistry },
@@ -197,5 +217,6 @@ export const useParameterStore = create<ParameterStore>((set) => ({
       lens: { ...defaultLens },
       format: { ...defaultFormat },
       print: { ...defaultPrint },
+      groupsEnabled: { ...DEFAULT_GROUPS_ENABLED },
     }),
 }));
