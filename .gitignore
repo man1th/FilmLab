@@ -1,0 +1,11 @@
+# Compiled binary
+filmlab
+
+# Object files
+*.o
+
+# Output directory
+output/
+
+# macOS
+.DS_Store
