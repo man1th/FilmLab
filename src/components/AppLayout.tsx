@@ -6,6 +6,8 @@ import {
   RotateCw,
   FlipHorizontal,
   Crop,
+  Monitor,
+  Maximize2,
 } from "lucide-react";
 import { useEngineBridge } from "@/hooks/useEngineBridge";
 import { useImageStore } from "@/store/useImageStore";
@@ -53,6 +55,14 @@ export function AppLayout() {
             >
               <Redo2 className="w-4 h-4" />
             </Button>
+
+            <Separator
+              orientation="vertical"
+              className="h-6 bg-zinc-700 mx-1"
+            />
+
+            {/* PR / FR toggle */}
+            <ResolutionToggle />
 
             <Separator
               orientation="vertical"
@@ -117,5 +127,45 @@ export function AppLayout() {
 
       <CropDialog open={cropDialogOpen} onOpenChange={setCropDialogOpen} />
     </SidebarProvider>
+  );
+}
+
+// ─── PR / FR Resolution Toggle ────────────────────────────────────────────────
+
+function ResolutionToggle() {
+  const resolutionMode = useImageStore((s) => s.resolutionMode);
+  const toggleResolution = useImageStore((s) => s.toggleResolution);
+  const hasImage = useImageStore((s) => !!s.originalImageDataUrl);
+
+  return (
+    <div className="flex items-center rounded-md border border-zinc-700 overflow-hidden">
+      <button
+        onClick={toggleResolution}
+        disabled={!hasImage}
+        className={`flex items-center gap-1 px-2 py-1 text-[11px] font-medium transition-colors ${
+          resolutionMode === "pr"
+            ? "bg-zinc-700 text-zinc-100"
+            : "bg-transparent text-zinc-500 hover:text-zinc-300"
+        }`}
+        title="Partial Resolution — process at 2000px preview"
+      >
+        <Monitor className="w-3 h-3" />
+        PR
+      </button>
+      <div className="w-px h-4 bg-zinc-700" />
+      <button
+        onClick={toggleResolution}
+        disabled={!hasImage}
+        className={`flex items-center gap-1 px-2 py-1 text-[11px] font-medium transition-colors ${
+          resolutionMode === "fr"
+            ? "bg-zinc-700 text-zinc-100"
+            : "bg-transparent text-zinc-500 hover:text-zinc-300"
+        }`}
+        title="Full Resolution — process at native image size"
+      >
+        <Maximize2 className="w-3 h-3" />
+        FR
+      </button>
+    </div>
   );
 }

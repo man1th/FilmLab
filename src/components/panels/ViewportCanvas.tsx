@@ -161,19 +161,30 @@ export function ViewportCanvas({
     }
   }, []);
 
-  // ── Initialize GPU pipeline and upload initial texture ──────────────
+  // ── Initialize GPU pipeline (uses resolution mode from store) ───────
 
   const initGpuPipeline = useCallback(
     (origCanvas: HTMLCanvasElement) => {
       const origW = origCanvas.width;
       const origH = origCanvas.height;
-      const maxDim = Math.max(origW, origH);
-      const scale = maxDim > MAX_PREVIEW_PX ? MAX_PREVIEW_PX / maxDim : 1;
-      previewScaleRef.current = scale;
-      const pw = Math.max(1, Math.round(origW * scale));
-      const ph = Math.max(1, Math.round(origH * scale));
+      const mode = useImageStore.getState().resolutionMode;
 
-      // Downscale original to preview size
+      let pw: number, ph: number, scale: number;
+      if (mode === "fr") {
+        // Full resolution — native dimensions
+        pw = origW;
+        ph = origH;
+        scale = 1;
+      } else {
+        // Partial resolution — cap at 2000px
+        const maxDim = Math.max(origW, origH);
+        scale = maxDim > MAX_PREVIEW_PX ? MAX_PREVIEW_PX / maxDim : 1;
+        pw = Math.max(1, Math.round(origW * scale));
+        ph = Math.max(1, Math.round(origH * scale));
+      }
+      previewScaleRef.current = scale;
+
+      // Downscale (or use full) original to working size
       const tempCanvas = document.createElement("canvas");
       tempCanvas.width = pw;
       tempCanvas.height = ph;
@@ -188,21 +199,34 @@ export function ViewportCanvas({
         pipelineRef.current = null;
       }
 
-      // Create GPU pipeline
+      // Create GPU pipeline at working resolution
       const pipeline = createGpuPipeline(pw, ph);
       if (!pipeline) {
         console.warn("WebGL2 not available, falling back to CPU");
-        // Future: fallback to CPU processing
         return;
       }
       pipelineRef.current = pipeline;
 
-      // Upload initial texture and process with default params
+      // Upload pixels and process
       pipeline.uploadPixels(imageData.data);
       gpuProcess();
     },
     [gpuProcess],
   );
+
+  // Re-init when resolution mode toggles
+  useEffect(() => {
+    const unsub = useImageStore.subscribe((state) => {
+      // Only react to resolutionMode changes
+      if ("resolutionMode" in state) {
+        const origCanvas = originalCanvasRef.current;
+        if (origCanvas && imageRef.current) {
+          initGpuPipeline(origCanvas);
+        }
+      }
+    });
+    return unsub;
+  }, [initGpuPipeline]);
 
   // ── Load image ──────────────────────────────────────────────────────
 

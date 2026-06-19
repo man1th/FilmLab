@@ -94,7 +94,7 @@ export interface ParameterStore {
 // ─── Default Values ─────────────────────────────────────────────────────────
 
 const defaultChemistry: ChemistryParams = {
-  dMin: 0.05,
+  dMin: 0.0,
   dMax: 0.85,
   subtractiveDensity: 1.0,
   contrastProfile: 1.0,
