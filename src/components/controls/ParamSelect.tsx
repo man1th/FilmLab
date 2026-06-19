@@ -1,11 +1,11 @@
-import { useCallback } from 'react';
+import { useCallback } from "react";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 
 interface ParamSelectProps {
   label: string;
@@ -20,14 +20,11 @@ export function ParamSelect({
   options,
   onChange,
 }: ParamSelectProps) {
-  const handleChange = useCallback(
-    (v: string) => onChange(v),
-    [onChange],
-  );
+  const handleChange = useCallback((v: string) => onChange(v), [onChange]);
 
   return (
     <div className="space-y-1.5">
-      <label className="text-[11px] font-medium text-zinc-400">{label}</label>
+      <label className="text-xs font-medium text-zinc-400">{label}</label>
       <Select value={value} onValueChange={handleChange}>
         <SelectTrigger>
           <SelectValue />

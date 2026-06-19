@@ -1,12 +1,14 @@
 import { useRef, useEffect, useCallback, useState } from "react";
 import { useImageStore } from "@/store/useImageStore";
 import { useParameterStore } from "@/store/useParameterStore";
-import { applyChemistryPipeline } from "@/pipeline/chemistry";
+import { createGpuPipeline } from "@/pipeline/gpu-pipeline";
 
 interface ViewportCanvasProps {
   onRegisterRenderer: (fn: (dataUrl: string) => void) => void;
   onFileDrop: (file: File) => void;
 }
+
+const MAX_PREVIEW_PX = 2000;
 
 export function ViewportCanvas({
   onRegisterRenderer,
@@ -20,34 +22,42 @@ export function ViewportCanvas({
 
   // Pan & zoom
   const panRef = useRef({ x: 0, y: 0 });
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const zoomRef = useRef(1);
   const isDragging = useRef(false);
   const lastMousePos = useRef({ x: 0, y: 0 });
 
-  // Processing pipeline
+  // GPU pipeline
   const originalCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const processedCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const needsReprocessRef = useRef(false);
+  const previewScaleRef = useRef(1);
+  const pipelineRef = useRef<ReturnType<typeof createGpuPipeline> | null>(null);
 
-  // ── Process image through chemistry pipeline ──────────────────────────
+  // ── GPU-based processing: update uniforms → render → read back ──────
 
-  const processImage = useCallback(() => {
-    const origCanvas = originalCanvasRef.current;
-    const img = imageRef.current;
-    if (!origCanvas || !img) return;
+  const gpuProcess = useCallback(() => {
+    const pipeline = pipelineRef.current;
+    if (!pipeline) return;
 
-    const ctx = origCanvas.getContext("2d");
-    if (!ctx) return;
-
-    const w = origCanvas.width;
-    const h = origCanvas.height;
-    const imageData = ctx.getImageData(0, 0, w, h);
-
-    // Apply chemistry pipeline
     const params = useParameterStore.getState().chemistry;
-    applyChemistryPipeline(imageData.data, w, h, params);
+    const paramArray = new Float64Array([
+      params.dMin,
+      params.dMax,
+      params.subtractiveDensity,
+      params.contrastProfile,
+      params.chemistryExpiration,
+      params.shadowFog,
+    ]);
 
-    // Draw processed result to offscreen canvas
+    pipeline.setParams(paramArray);
+    const pixels = pipeline.render(); // Uint8ClampedArray
+
+    // Copy to new buffer for ImageData (type-safe ArrayBuffer)
+    const clamped = new Uint8ClampedArray(pixels);
+
+    // Store processed result in offscreen 2D canvas
+    const w = pipeline.gl.canvas.width;
+    const h = pipeline.gl.canvas.height;
     let procCanvas = processedCanvasRef.current;
     if (!procCanvas || procCanvas.width !== w || procCanvas.height !== h) {
       procCanvas = document.createElement("canvas");
@@ -57,29 +67,27 @@ export function ViewportCanvas({
     }
     const pCtx = procCanvas.getContext("2d");
     if (!pCtx) return;
+    const imageData = new ImageData(clamped, w, h);
     pCtx.putImageData(imageData, 0, 0);
 
-    needsReprocessRef.current = false;
     renderCanvas();
   }, []);
 
-  // Subscribe to chemistry param changes → re-process
+  // Subscribe to chemistry param changes → GPU process instantly
   useEffect(() => {
     const unsub = useParameterStore.subscribe(() => {
-      // Only re-process if chemistry params changed
       if (!imageRef.current) return;
-      needsReprocessRef.current = true;
-      processImage();
+      gpuProcess();
     });
     return unsub;
-  }, [processImage]);
+  }, [gpuProcess]);
 
-  // ── Canvas render ────────────────────────────────────────────────────
+  // ── Canvas render ──────────────────────────────────────────────────
 
   const renderCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
-    const img = processedCanvasRef.current ?? imageRef.current;
+    const img = imageRef.current;
     if (!canvas || !container || !img) return;
 
     const ctx = canvas.getContext("2d");
@@ -97,8 +105,8 @@ export function ViewportCanvas({
 
     let srcX = 0,
       srcY = 0,
-      srcW = img.width as number,
-      srcH = img.height as number;
+      srcW = img.naturalWidth,
+      srcH = img.naturalHeight;
     if (cropRect && !cropActive) {
       srcX = cropRect.x;
       srcY = cropRect.y;
@@ -113,17 +121,39 @@ export function ViewportCanvas({
     ctx.translate(cw / 2 + pan.x, ch / 2 + pan.y);
     ctx.scale(zoom * (flipped ? -1 : 1), zoom);
     ctx.rotate((rotation * Math.PI) / 180);
-    ctx.drawImage(
-      img,
-      srcX,
-      srcY,
-      srcW,
-      srcH,
-      -srcW / 2,
-      -srcH / 2,
-      srcW,
-      srcH,
-    );
+
+    const procCanvas = processedCanvasRef.current;
+    if (procCanvas) {
+      // Draw processed preview scaled to native image space
+      const psx = srcX * previewScaleRef.current;
+      const psy = srcY * previewScaleRef.current;
+      const psw = srcW * previewScaleRef.current;
+      const psh = srcH * previewScaleRef.current;
+      ctx.drawImage(
+        procCanvas,
+        psx,
+        psy,
+        psw,
+        psh,
+        -srcW / 2,
+        -srcH / 2,
+        srcW,
+        srcH,
+      );
+    } else {
+      ctx.drawImage(
+        img,
+        srcX,
+        srcY,
+        srcW,
+        srcH,
+        -srcW / 2,
+        -srcH / 2,
+        srcW,
+        srcH,
+      );
+    }
+
     ctx.restore();
 
     if (cropActive && cropRect) {
@@ -131,7 +161,50 @@ export function ViewportCanvas({
     }
   }, []);
 
-  // ── Load image from data URL ─────────────────────────────────────────
+  // ── Initialize GPU pipeline and upload initial texture ──────────────
+
+  const initGpuPipeline = useCallback(
+    (origCanvas: HTMLCanvasElement) => {
+      const origW = origCanvas.width;
+      const origH = origCanvas.height;
+      const maxDim = Math.max(origW, origH);
+      const scale = maxDim > MAX_PREVIEW_PX ? MAX_PREVIEW_PX / maxDim : 1;
+      previewScaleRef.current = scale;
+      const pw = Math.max(1, Math.round(origW * scale));
+      const ph = Math.max(1, Math.round(origH * scale));
+
+      // Downscale original to preview size
+      const tempCanvas = document.createElement("canvas");
+      tempCanvas.width = pw;
+      tempCanvas.height = ph;
+      const tCtx = tempCanvas.getContext("2d");
+      if (!tCtx) return;
+      tCtx.drawImage(origCanvas, 0, 0, pw, ph);
+      const imageData = tCtx.getImageData(0, 0, pw, ph);
+
+      // Destroy previous pipeline if any
+      if (pipelineRef.current) {
+        pipelineRef.current.destroy();
+        pipelineRef.current = null;
+      }
+
+      // Create GPU pipeline
+      const pipeline = createGpuPipeline(pw, ph);
+      if (!pipeline) {
+        console.warn("WebGL2 not available, falling back to CPU");
+        // Future: fallback to CPU processing
+        return;
+      }
+      pipelineRef.current = pipeline;
+
+      // Upload initial texture and process with default params
+      pipeline.uploadPixels(imageData.data);
+      gpuProcess();
+    },
+    [gpuProcess],
+  );
+
+  // ── Load image ──────────────────────────────────────────────────────
 
   const loadImage = useCallback(
     (dataUrl: string) => {
@@ -139,7 +212,6 @@ export function ViewportCanvas({
       img.onload = () => {
         imageRef.current = img;
 
-        // Store original pixels in offscreen canvas
         const origCanvas = document.createElement("canvas");
         origCanvas.width = img.naturalWidth;
         origCanvas.height = img.naturalHeight;
@@ -147,23 +219,25 @@ export function ViewportCanvas({
         octx?.drawImage(img, 0, 0);
         originalCanvasRef.current = origCanvas;
 
+        // Clear previous processed result
+        processedCanvasRef.current = null;
+
         // Auto-zoom to fit
         const container = containerRef.current;
         if (container) {
           const cw = container.clientWidth;
           const ch = container.clientHeight;
-          const zoomX = cw / img.naturalWidth;
-          const zoomY = ch / img.naturalHeight;
-          zoomRef.current = Math.min(zoomX, zoomY) * 0.9;
+          zoomRef.current =
+            Math.min(cw / img.naturalWidth, ch / img.naturalHeight) * 0.9;
           panRef.current = { x: 0, y: 0 };
         }
 
-        // Initial process (applies default params)
-        processImage();
+        // Initialize GPU pipeline — processes with current params
+        initGpuPipeline(origCanvas);
       };
       img.src = dataUrl;
     },
-    [processImage],
+    [initGpuPipeline],
   );
 
   // Register renderer
@@ -180,20 +254,26 @@ export function ViewportCanvas({
 
   // Re-render on image store changes (rotation, flip, crop)
   useEffect(() => {
-    const unsub = useImageStore.subscribe(() => {
-      renderCanvas();
-    });
+    const unsub = useImageStore.subscribe(() => renderCanvas());
     return unsub;
-  }, [renderCanvas]);
+  }, []);
 
   // Re-render on resize
   useEffect(() => {
     const handleResize = () => renderCanvas();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [renderCanvas]);
+  }, []);
 
-  // ── Mouse handlers ───────────────────────────────────────────────────
+  // Cleanup pipeline on unmount
+  useEffect(() => {
+    return () => {
+      pipelineRef.current?.destroy();
+      pipelineRef.current = null;
+    };
+  }, []);
+
+  // ── Mouse handlers ─────────────────────────────────────────────────
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0 || !imageRef.current) return;
@@ -201,35 +281,31 @@ export function ViewportCanvas({
     lastMousePos.current = { x: e.clientX, y: e.clientY };
   }, []);
 
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent) => {
-      if (!isDragging.current || !imageRef.current) return;
-      const dx = e.clientX - lastMousePos.current.x;
-      const dy = e.clientY - lastMousePos.current.y;
-      lastMousePos.current = { x: e.clientX, y: e.clientY };
-      panRef.current.x += dx;
-      panRef.current.y += dy;
-      renderCanvas();
-    },
-    [renderCanvas],
-  );
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDragging.current || !imageRef.current) return;
+    const dx = e.clientX - lastMousePos.current.x;
+    const dy = e.clientY - lastMousePos.current.y;
+    lastMousePos.current = { x: e.clientX, y: e.clientY };
+    panRef.current.x += dx;
+    panRef.current.y += dy;
+    renderCanvas();
+  }, []);
 
   const handleMouseUp = useCallback(() => {
     isDragging.current = false;
   }, []);
 
-  const handleWheel = useCallback(
-    (e: React.WheelEvent) => {
-      if (!imageRef.current) return;
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? 0.9 : 1.1;
-      zoomRef.current = Math.max(0.1, Math.min(zoomRef.current * delta, 50));
-      renderCanvas();
-    },
-    [renderCanvas],
-  );
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (!imageRef.current) return;
+    e.preventDefault();
+    zoomRef.current = Math.max(
+      0.1,
+      Math.min(zoomRef.current * (e.deltaY > 0 ? 0.9 : 1.1), 50),
+    );
+    renderCanvas();
+  }, []);
 
-  // ── Drag and drop ────────────────────────────────────────────────────
+  // ── Drag and drop ──────────────────────────────────────────────────
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -274,7 +350,7 @@ export function ViewportCanvas({
       <canvas
         ref={canvasRef}
         className="absolute inset-0"
-        style={{ display: "block", background: "#1a1a1a" }}
+        style={{ display: "block" }}
       />
 
       {hasImage && (
@@ -284,16 +360,32 @@ export function ViewportCanvas({
       )}
 
       {!hasImage && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-10">
-          <div className="flex flex-col items-center gap-3 text-zinc-700">
+        <div
+          className="absolute inset-0 flex items-center justify-center z-10 cursor-pointer"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <div className="flex flex-col items-center gap-3 text-zinc-700 pointer-events-none select-none">
             <ImportIcon className="w-16 h-16" />
             <p className="text-sm font-medium">
-              Drop an image here or click Import
+              Drop an image here or click to browse
             </p>
             <p className="text-xs text-zinc-800">JPEG, PNG, TIFF, WebP</p>
           </div>
         </div>
       )}
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/tiff,image/webp"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) onFileDrop(file);
+          e.target.value = "";
+        }}
+      />
 
       {isDragOver && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-zinc-900/60 pointer-events-none">

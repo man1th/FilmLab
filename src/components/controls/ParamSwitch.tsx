@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
-import { Switch } from '@/components/ui/switch';
+import { useCallback } from "react";
+import { Switch } from "@/components/ui/switch";
 
 interface ParamSwitchProps {
   label: string;
@@ -8,14 +8,11 @@ interface ParamSwitchProps {
 }
 
 export function ParamSwitch({ label, checked, onChange }: ParamSwitchProps) {
-  const handleChange = useCallback(
-    (v: boolean) => onChange(v),
-    [onChange],
-  );
+  const handleChange = useCallback((v: boolean) => onChange(v), [onChange]);
 
   return (
     <div className="flex items-center justify-between">
-      <label className="text-[11px] font-medium text-zinc-400">{label}</label>
+      <label className="text-xs font-medium text-zinc-400">{label}</label>
       <Switch checked={checked} onCheckedChange={handleChange} />
     </div>
   );

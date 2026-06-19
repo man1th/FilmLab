@@ -1,74 +1,74 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
 // ─── Parameter Type Definitions ─────────────────────────────────────────────
 
 export interface ChemistryParams {
-  dMin: number;          // 0.0 to 0.3
-  dMax: number;          // 0.7 to 1.0
+  dMin: number; // 0.0 to 0.3
+  dMax: number; // 0.7 to 1.0
   subtractiveDensity: number; // 0.0 to 2.0
-  contrastProfile: number;    // 0.5 to 2.0
+  contrastProfile: number; // 0.5 to 2.0
   chemistryExpiration: number; // 0.0 to 1.0
-  shadowFog: number;     // 0.0 to 0.2
+  shadowFog: number; // 0.0 to 0.2
 }
 
 export interface HalationParams {
-  spreadRadius: number;       // 1 to 50
-  fringeChromaticity: number;  // 0.0 to 2.0
-  edgeRetention: number;      // 0.0 to 1.0
+  spreadRadius: number; // 1 to 50
+  fringeChromaticity: number; // 0.0 to 2.0
+  edgeRetention: number; // 0.0 to 1.0
   redSpill: number;
   greenSpill: number;
   blueSpill: number;
   remjetProtection: boolean;
-  glowTemperature: number;    // 2000 to 10000
+  glowTemperature: number; // 2000 to 10000
 }
 
 export interface GrainParams {
-  crystalDensity: number;    // 0.0 to 1.0
+  crystalDensity: number; // 0.0 to 1.0
   dyeCloudSaturation: number; // 0.0 to 2.0
-  clumpingRoughness: number;  // 1.0 to 5.0
+  clumpingRoughness: number; // 1.0 to 5.0
   directionalStretch: number; // -1.0 to 1.0
-  anamorphicSqueeze: number;  // 1.0 to 2.0
-  shadowYield: number;        // 0.0 to 1.0
-  midtoneYield: number;       // 0.0 to 1.0
-  highlightYield: number;     // 0.0 to 1.0
+  anamorphicSqueeze: number; // 1.0 to 2.0
+  shadowYield: number; // 0.0 to 1.0
+  midtoneYield: number; // 0.0 to 1.0
+  highlightYield: number; // 0.0 to 1.0
 }
 
 export interface AcutanceParams {
-  adjacencyEffect: number;      // 0.0 to 1.0
-  scannerSharpening: number;    // 0.0 to 1.0
-  microAcutance: number;        // 0.0 to 3.0
-  fineEdgeBalance: number;      // -1.0 to 1.0
-  fineKernelSize: number;       // 0.5 to 3.0
-  macroAcutance: number;        // 0.0 to 3.0
-  coarseEdgeBalance: number;    // -1.0 to 1.0
-  coarseKernelSize: number;     // 5.0 to 30.0
+  adjacencyEffect: number; // 0.0 to 1.0
+  scannerSharpening: number; // 0.0 to 1.0
+  microAcutance: number; // 0.0 to 3.0
+  fineEdgeBalance: number; // -1.0 to 1.0
+  fineKernelSize: number; // 0.5 to 3.0
+  macroAcutance: number; // 0.0 to 3.0
+  coarseEdgeBalance: number; // -1.0 to 1.0
+  coarseKernelSize: number; // 5.0 to 30.0
 }
 
 export interface LensParams {
-  bokehDesqueeze: number;       // 1.0 to 2.0
-  flareThreshold: number;       // 0.7 to 1.0
-  streakExtension: number;      // 10.0 to 600.0
-  barrelDistortion: number;     // -0.3 to +0.3
-  peripheralSoftness: number;   // 0.0 to 1.0
-  promistDiffusion: number;     // 0.0 to 1.0
-  flareTint: string;            // select value
+  bokehDesqueeze: number; // 1.0 to 2.0
+  flareThreshold: number; // 0.7 to 1.0
+  streakExtension: number; // 10.0 to 600.0
+  barrelDistortion: number; // -0.3 to +0.3
+  peripheralSoftness: number; // 0.0 to 1.0
+  promistDiffusion: number; // 0.0 to 1.0
+  flareTint: string; // select value
 }
 
 export interface FormatParams {
-  targetGauge: string;          // 8mm | 16mm | 35mm | 65mm
-  gateOverscan: number;         // 0.0 to 0.25
-  debrisFrequency: number;      // 0.0 to 1.0
-  debrisProfile: string;        // Specks | Threads | Crystals
+  targetGauge: string; // 8mm | 16mm | 35mm | 65mm
+  gateOverscan: number; // 0.0 to 0.25
+  debrisFrequency: number; // 0.0 to 1.0
+  debrisProfile: string; // Specks | Threads | Crystals
   sprocketsEnabled: boolean;
-  vignetteStrength: number;     // 0.0 to 1.0
+  vignetteStrength: number; // 0.0 to 1.0
   debrisInversion: boolean;
 }
 
 export interface PrintParams {
-  printStock: string;           // Bypass | Kodak 2383 | Fuji 3510
-  contrastDensity: number;      // 0.0 to 2.0
-  grayscaleNeutrality: number;  // 0.0 to 1.0
-  shadowDefog: number;          // 0.0 to 1.0
+  printStock: string; // Bypass | Kodak 2383 | Fuji 3510
+  contrastDensity: number; // 0.0 to 2.0
+  grayscaleNeutrality: number; // 0.0 to 1.0
+  shadowDefog: number; // 0.0 to 1.0
 }
 
 export interface ParameterStore {
@@ -97,7 +97,7 @@ const defaultChemistry: ChemistryParams = {
   dMin: 0.05,
   dMax: 0.85,
   subtractiveDensity: 1.0,
-  contrastProfile: 1.2,
+  contrastProfile: 1.0,
   chemistryExpiration: 0.0,
   shadowFog: 0.02,
 };
@@ -142,21 +142,21 @@ const defaultLens: LensParams = {
   barrelDistortion: 0.0,
   peripheralSoftness: 0.0,
   promistDiffusion: 0.0,
-  flareTint: 'Neutral',
+  flareTint: "Neutral",
 };
 
 const defaultFormat: FormatParams = {
-  targetGauge: '35mm',
+  targetGauge: "35mm",
   gateOverscan: 0.05,
   debrisFrequency: 0.3,
-  debrisProfile: 'Specks',
+  debrisProfile: "Specks",
   sprocketsEnabled: false,
   vignetteStrength: 0.3,
   debrisInversion: false,
 };
 
 const defaultPrint: PrintParams = {
-  printStock: 'Bypass',
+  printStock: "Bypass",
   contrastDensity: 1.0,
   grayscaleNeutrality: 0.5,
   shadowDefog: 0.3,
